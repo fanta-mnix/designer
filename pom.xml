@@ -1,13 +1,13 @@
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
-    <groupId>org.jboss.drools</groupId>
-    <artifactId>jbpm-designer</artifactId>
+    <groupId>br.com.lecom.atos</groupId>
+    <artifactId>designer</artifactId>
     <version>3.1.0-SNAPSHOT</version>
     <packaging>war</packaging>
 
-    <description>jBPM Designer</description>
-    <url>https://github.com/droolsjbpm/jbpm-designer</url>
+    <description>Atos Designer</description>
+    <url>https://github.com/fanta-mnix/designer</url>
     <licenses>
         <license>
             <name>The Apache Software License, Version 2.0</name>
@@ -17,9 +17,9 @@
     </licenses>
 
     <scm>
-        <connection>scm:git:git@github.com:droolsjbpm/jbpm-designer.git</connection>
-        <developerConnection>scm:git:git@github.com:droolsjbpm/jbpm-designer.git</developerConnection>
-        <url>https://github.com/droolsjbpm/jbpm-designer</url>
+        <connection>scm:git:git@github.com:fanta-mnix/designer.git</connection>
+        <developerConnection>scm:git:git@github.com:fanta-mnix/designer.git</developerConnection>
+        <url>https://github.com/fanta-mnix/designer</url>
     </scm>
 
     <properties>
@@ -32,89 +32,11 @@
     </properties>
 
     <dependencies>
-        <!-- jBPM -->
+        <!-- Script -->
         <dependency>
             <groupId>org.mvel</groupId>
             <artifactId>mvel2</artifactId>
             <version>${mvel.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>org.jbpm</groupId>
-            <artifactId>jbpm-bpmn2</artifactId>
-            <version>${jbpm.version}</version>
-            <exclusions>
-                <exclusion>
-                    <groupId>org.slf4j</groupId>
-                    <artifactId>slf4j-log4j12</artifactId>
-                </exclusion>
-            </exclusions>
-        </dependency>
-        <dependency>
-            <groupId>org.jbpm</groupId>
-            <artifactId>jbpm-flow</artifactId>
-            <version>${jbpm.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>org.jbpm</groupId>
-            <artifactId>jbpm-flow-builder</artifactId>
-            <version>${jbpm.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>org.jbpm</groupId>
-            <artifactId>jbpm-workitems</artifactId>
-            <version>${jbpm.version}</version>
-            <exclusions>
-                <exclusion>
-                    <groupId>jdom</groupId>
-                    <artifactId>jdom</artifactId>
-                </exclusion>
-                <exclusion>
-                    <groupId>org.slf4j</groupId>
-                    <artifactId>slf4j-log4j12</artifactId>
-                </exclusion>
-            </exclusions>
-        </dependency>
-        <dependency>
-            <groupId>org.jbpm</groupId>
-            <artifactId>jbpm-bpmn2-emfextmodel</artifactId>
-            <version>${jbpm.version}</version>
-        </dependency>
-
-        <!-- jBPM Migration -->
-        <dependency>
-            <groupId>org.jbpm.jbpm5</groupId>
-            <artifactId>jbpmmigration</artifactId>
-            <version>0.11</version>
-            <exclusions>
-                <exclusion>
-                    <groupId>log4j</groupId>
-                    <artifactId>log4j</artifactId>
-                </exclusion>
-                <exclusion>
-                    <groupId>xml-apis</groupId>
-                    <artifactId>xml-apis</artifactId>
-                </exclusion>
-                <exclusion>
-                    <groupId>xalan</groupId>
-                    <artifactId>xalan</artifactId>
-                </exclusion>
-                <exclusion>
-                    <groupId>xerces</groupId>
-                    <artifactId>xercesImpl</artifactId>
-                </exclusion>
-            </exclusions>
-        </dependency>
-
-        <!--  Drools -->
-        <dependency>
-            <groupId>org.drools</groupId>
-            <artifactId>drools-core</artifactId>
-            <version>${drools.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>org.drools</groupId>
-            <artifactId>drools-compiler</artifactId>
-            <version>${drools.version}</version>
         </dependency>
 
         <!-- Google's closure-compiler -->
@@ -617,7 +539,7 @@
                 <version>2.0</version>
                 <configuration>
                     <path>/designer</path>
-                    <warFile>target/jbpm-designer-${project.version}-tomcat.war</warFile>
+                    <warFile>target/designer-${project.version}-tomcat.war</warFile>
                     <port>${port}</port>
                 </configuration>
             </plugin>
