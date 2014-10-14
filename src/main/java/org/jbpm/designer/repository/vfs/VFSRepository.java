@@ -1,30 +1,43 @@
 package org.jbpm.designer.repository.vfs;
 
-import org.apache.commons.codec.binary.Base64;
-import org.jbpm.designer.repository.*;
-import org.jbpm.designer.repository.impl.AbstractAsset;
-import org.jbpm.designer.repository.impl.AssetBuilder;
-import org.jbpm.designer.web.profile.IDiagramProfile;
-import org.kie.commons.io.IOService;
-import org.kie.commons.io.impl.IOServiceDotFileImpl;
-import org.kie.commons.io.impl.IOServiceNio2WrapperImpl;
-import org.kie.commons.java.nio.IOException;
-import org.kie.commons.java.nio.base.options.CommentedOption;
-import org.kie.commons.java.nio.file.*;
-import org.kie.commons.java.nio.file.attribute.BasicFileAttributes;
-
-import java.io.File;
+import java.io.IOException;
 import java.io.OutputStream;
 import java.io.UnsupportedEncodingException;
 import java.net.URI;
-import java.nio.charset.Charset;
-import java.util.*;
+import java.nio.file.DirectoryStream;
+import java.nio.file.FileAlreadyExistsException;
+import java.nio.file.FileSystem;
+import java.nio.file.FileSystems;
+import java.nio.file.FileVisitResult;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.SimpleFileVisitor;
+import java.nio.file.StandardCopyOption;
+import java.nio.file.StandardOpenOption;
+import java.nio.file.attribute.BasicFileAttributes;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Date;
+import java.util.HashMap;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Map;
 
-import static org.kie.commons.io.FileSystemType.Bootstrap.BOOTSTRAP_INSTANCE;
+import org.apache.commons.codec.binary.Base64;
+import org.jbpm.designer.repository.Asset;
+import org.jbpm.designer.repository.AssetBuilderFactory;
+import org.jbpm.designer.repository.AssetNotFoundException;
+import org.jbpm.designer.repository.Directory;
+import org.jbpm.designer.repository.Filter;
+import org.jbpm.designer.repository.Repository;
+import org.jbpm.designer.repository.impl.AbstractAsset;
+import org.jbpm.designer.repository.impl.AssetBuilder;
+import org.jbpm.designer.web.profile.IDiagramProfile;
+
+import com.google.common.base.Charsets;
+import com.google.common.base.Joiner;
 
 public class VFSRepository implements Repository {
-
-    private final IOService ioService = new IOServiceNio2WrapperImpl();
 
     private URI repositoryRoot;
     private Path repositoryRootPath;
@@ -39,32 +52,41 @@ public class VFSRepository implements Repository {
     public VFSRepository(IDiagramProfile profile, Map<String, String> env) {
         this.repositoryRoot = URI.create(profile.getRepositoryRoot());
 
-        this.fileSystem = ioService.getFileSystem( this.repositoryRoot );
+        this.fileSystem = FileSystems.getFileSystem( this.repositoryRoot );
 
         if ( fileSystem == null ) {
 
-            this.fileSystem = ioService.newFileSystem( this.repositoryRoot, env, BOOTSTRAP_INSTANCE );
+            try {
+				this.fileSystem = FileSystems.newFileSystem( this.repositoryRoot, env );
+			} catch (IOException e) {
+				throw new AssertionError(e.getLocalizedMessage(), e);
+			}
         }
 
         // fetch file system changes - mainly for remote based file systems
         String fetchCommand = (String) env.get("fetch.cmd");
         if (fetchCommand != null) {
-            this.fileSystem = ioService.getFileSystem(URI.create(profile.getRepositoryRoot() + fetchCommand));
+            this.fileSystem = FileSystems.getFileSystem(URI.create(profile.getRepositoryRoot() + fetchCommand));
         }
         this.repositoryRootPath = fileSystem.provider().getPath(this.repositoryRoot);
     }
     
     public Collection<Directory> listDirectories(String startAt) {
         Path path = fileSystem.provider().getPath(URI.create(getRepositoryRoot() + startAt));
-        DirectoryStream<Path> directories = ioService.newDirectoryStream(path, new DirectoryStream.Filter<Path>() {
+        DirectoryStream<Path> directories;
+		try {
+			directories = Files.newDirectoryStream(path, new DirectoryStream.Filter<Path>() {
 
-            public boolean accept( final Path entry ) throws IOException {
-                if ( Files.isDirectory(entry) ) {
-                    return true;
-                }
-                return false;
-            }
-        });
+			    public boolean accept( final Path entry ) throws IOException {
+			        if ( Files.isDirectory(entry) ) {
+			            return true;
+			        }
+			        return false;
+			    }
+			});
+		} catch (IOException e) {
+			return null;
+		}
         Collection<Directory> foundDirectories = new ArrayList<Directory>();
         Iterator<Path> it = directories.iterator();
         while (it.hasNext()) {
@@ -80,16 +102,20 @@ public class VFSRepository implements Repository {
         final Collection<Asset> foundAssets = new ArrayList<Asset>();
         Path path = fileSystem.provider().getPath(URI.create(getRepositoryRoot() + startAt));
 
-        Files.walkFileTree(path, new SimpleFileVisitor<Path>() {
+        try {
+			Files.walkFileTree(path, new SimpleFileVisitor<Path>() {
 
-           public FileVisitResult visitFile(Path paths, BasicFileAttributes basicFileAttributes) throws IOException {
-               if (filter.accept(paths)) {
-                   foundAssets.add(buildAsset(paths, false));
-               }
-               return FileVisitResult.CONTINUE;
-           }
+			   public FileVisitResult visitFile(Path paths, BasicFileAttributes basicFileAttributes) throws IOException {
+			       if (filter.accept(paths)) {
+			           foundAssets.add(buildAsset(paths, false));
+			       }
+			       return FileVisitResult.CONTINUE;
+			   }
 
-        });
+			});
+		} catch (IOException e) {
+			return null;
+		}
 
         return foundAssets;
     }
@@ -97,7 +123,11 @@ public class VFSRepository implements Repository {
     public Directory createDirectory(String location) {
         Path path = fileSystem.provider().getPath(URI.create(getRepositoryRoot() + location));
 
-        path = ioService.createDirectories(path);
+        try {
+			path = Files.createDirectories(path);
+		} catch (IOException e) {
+			return null;
+		}
         String uniqueId = encodeUniqueId(path.toUri().toString());
         Directory directory = new Directory(uniqueId, path.getFileName().toString(), trimLocation(path));
         return directory;
@@ -106,7 +136,7 @@ public class VFSRepository implements Repository {
     public boolean directoryExists(String directory) {
         Path path = fileSystem.provider().getPath(URI.create(getRepositoryRoot() + directory));
 
-        return ioService.exists(path) && Files.isDirectory(path);
+        return Files.exists(path) && Files.isDirectory(path);
     }
 
     public boolean deleteDirectory(String directory, boolean failIfNotEmpty) {
@@ -119,14 +149,14 @@ public class VFSRepository implements Repository {
             Files.walkFileTree(path, new SimpleFileVisitor<Path>() {
                 @Override
                 public FileVisitResult visitFile(Path paths, BasicFileAttributes basicFileAttributes) throws IOException {
-                    ioService.delete(paths);
+                    Files.delete(paths);
 
                     return FileVisitResult.CONTINUE;
                 }
                 @Override
                 public FileVisitResult postVisitDirectory(Path dir, IOException e) throws IOException {
                     if (e == null) {
-                        ioService.deleteIfExists(dir);
+                        Files.deleteIfExists(dir);
                         return FileVisitResult.CONTINUE;
                     } else {
                         // directory iteration failed
@@ -238,15 +268,20 @@ public class VFSRepository implements Repository {
 
     public Collection<Asset> listAssets(String location) {
         Path path = fileSystem.provider().getPath(URI.create(getRepositoryRoot() + location));
-        DirectoryStream<Path> directories = ioService.newDirectoryStream(path, new DirectoryStream.Filter<Path>() {
+        DirectoryStream<Path> directories;
+		try {
+			directories = Files.newDirectoryStream(path, new DirectoryStream.Filter<Path>() {
 
-            public boolean accept( final Path entry ) throws IOException {
-                if (!Files.isDirectory(entry)) {
-                    return true;
-                }
-                return false;
-            }
-        });
+			    public boolean accept( final Path entry ) throws IOException {
+			        if (!Files.isDirectory(entry)) {
+			            return true;
+			        }
+			        return false;
+			    }
+			});
+		} catch (IOException e) {
+			return null;
+		}
         Collection<Asset> foundDirectories = new ArrayList<Asset>();
         Iterator<Path> it = directories.iterator();
         while (it.hasNext()) {
@@ -259,13 +294,18 @@ public class VFSRepository implements Repository {
 
     public Collection<Asset> listAssets(String location, final Filter filter) {
         Path path = fileSystem.provider().getPath(URI.create(getRepositoryRoot() + location));
-        DirectoryStream<Path> directories = ioService.newDirectoryStream(path, new DirectoryStream.Filter<Path>() {
+        DirectoryStream<Path> directories;
+		try {
+			directories = Files.newDirectoryStream(path, new DirectoryStream.Filter<Path>() {
 
-            public boolean accept( final Path entry ) throws IOException {
+			    public boolean accept( final Path entry ) throws IOException {
 
-                return filter.accept(entry);
-            }
-        });
+			        return filter.accept(entry);
+			    }
+			});
+		} catch (IOException e) {
+			return null;
+		}
         Collection<Asset> foundDirectories = new ArrayList<Asset>();
         Iterator<Path> it = directories.iterator();
         while (it.hasNext()) {
@@ -288,7 +328,7 @@ public class VFSRepository implements Repository {
     public Asset loadAssetFromPath(String location) throws AssetNotFoundException {
         Path path = fileSystem.provider().getPath(URI.create(getRepositoryRoot() + location));
 
-        if (ioService.exists(path)) {
+        if (Files.exists(path)) {
             return loadAsset(path.toUri().toString());
         } else {
             throw new AssetNotFoundException();
@@ -300,8 +340,7 @@ public class VFSRepository implements Repository {
         Path filePath = fileSystem.provider().getPath(URI.create(getRepositoryRoot() + (asset.getAssetLocation().equals("/")?"":asset.getAssetLocation()) + "/" +asset.getFullName()));
         createIfNotExists(filePath);
         try {
-            CommentedOption commentedOption = new CommentedOption("admin", "Created asset " + asset.getFullName());
-            OutputStream outputStream = fileSystem.provider().newOutputStream(filePath, StandardOpenOption.TRUNCATE_EXISTING, commentedOption);
+            OutputStream outputStream = fileSystem.provider().newOutputStream(filePath, StandardOpenOption.TRUNCATE_EXISTING);
             if(((AbstractAsset)asset).acceptBytes()) {
                 outputStream.write(((Asset<byte[]>)asset).getAssetContent());
             } else {
@@ -317,15 +356,18 @@ public class VFSRepository implements Repository {
     public String updateAsset(Asset asset) throws AssetNotFoundException {
         String uniqueId = decodeUniqueId(asset.getUniqueId());
         Path filePath = fileSystem.provider().getPath(URI.create(uniqueId));
-        if (!ioService.exists(filePath)) {
+        if (!Files.exists(filePath)) {
             throw new AssetNotFoundException();
         }
-        CommentedOption commentedOption = new CommentedOption("admin", "Updated asset " + asset.getFullName());
-        if(((AbstractAsset)asset).acceptBytes()) {
-            ioService.write(filePath, ((Asset<byte[]>)asset).getAssetContent(), StandardOpenOption.TRUNCATE_EXISTING, commentedOption);
-        } else {
-            ioService.write(filePath, asset.getAssetContent().toString().getBytes(), StandardOpenOption.TRUNCATE_EXISTING, commentedOption);
-        }
+        try {
+			if(((AbstractAsset)asset).acceptBytes()) {
+			    Files.write(filePath, ((Asset<byte[]>)asset).getAssetContent(), StandardOpenOption.TRUNCATE_EXISTING);
+			} else {
+				Files.write(filePath, asset.getAssetContent().toString().getBytes(), StandardOpenOption.TRUNCATE_EXISTING);
+			}
+		} catch (IOException e) {
+			return null;
+		}
 
         return asset.getUniqueId();
     }
@@ -333,7 +375,7 @@ public class VFSRepository implements Repository {
     public boolean deleteAsset(String assetUniqueId) {
         String uniqueId = decodeUniqueId(assetUniqueId);
         try {
-            return ioService.deleteIfExists(fileSystem.provider().getPath(URI.create(uniqueId)));
+            return Files.deleteIfExists(fileSystem.provider().getPath(URI.create(uniqueId)));
         } catch (Exception e) {
             return false;
         }
@@ -349,9 +391,9 @@ public class VFSRepository implements Repository {
     public boolean assetExists(String assetUniqueId) {
         String uniqueId = decodeUniqueId(assetUniqueId);
         try {
-            return ioService.exists(fileSystem.provider().getPath(URI.create(uniqueId)));
+            return Files.exists(fileSystem.provider().getPath(URI.create(uniqueId)));
         } catch (Exception e) {
-            return ioService.exists(fileSystem.provider().getPath(URI.create(getRepositoryRoot() + assetUniqueId)));
+            return Files.exists(fileSystem.provider().getPath(URI.create(getRepositoryRoot() + assetUniqueId)));
         }
     }
 
@@ -366,10 +408,7 @@ public class VFSRepository implements Repository {
                     + fileSystem.getSeparator() + sourcePath.getFileName().toString()));
             createIfNotExists(destinationPath);
 
-            CommentedOption commentedOption = new CommentedOption("admin", "Copied asset " + sourcePath.getFileName()
-                    + " into " + location);
-
-            fileSystem.provider().copy(sourcePath, destinationPath, StandardCopyOption.REPLACE_EXISTING,commentedOption);
+            fileSystem.provider().copy(sourcePath, destinationPath, StandardCopyOption.REPLACE_EXISTING);
 
             return true;
         } catch (Exception e) {
@@ -391,9 +430,7 @@ public class VFSRepository implements Repository {
 
             Path destinationPath = fileSystem.provider().getPath(URI.create(getRepositoryRoot() + location + fileSystem.getSeparator() + name));
             createIfNotExists(destinationPath);
-            CommentedOption commentedOption = new CommentedOption("admin", "Moved asset " + sourcePath.getFileName()
-                    + " into " + location);
-            fileSystem.provider().move(sourcePath, destinationPath, StandardCopyOption.REPLACE_EXISTING, commentedOption);
+            fileSystem.provider().move(sourcePath, destinationPath, StandardCopyOption.REPLACE_EXISTING);
 
             return true;
         } catch (Exception e) {
@@ -408,7 +445,12 @@ public class VFSRepository implements Repository {
         String location = trimLocation(file);
 
         AssetBuilder assetBuilder = AssetBuilderFactory.getAssetBuilder(name);
-        BasicFileAttributes attrs = fileSystem.provider().readAttributes(file, BasicFileAttributes.class);
+        BasicFileAttributes attrs;
+		try {
+			attrs = fileSystem.provider().readAttributes(file, BasicFileAttributes.class);
+		} catch (IOException e1) {
+			return null;
+		}
         assetBuilder.uniqueId(encodeUniqueId(file.toUri().toString()))
                     .location(location)
                     .creationDate(attrs.creationTime() == null ? "" : new Date(attrs.creationTime().toMillis()).toString())
@@ -418,11 +460,16 @@ public class VFSRepository implements Repository {
                     .owner("");
 
         if (loadContent) {
-            if (((AbstractAsset)assetBuilder.getAsset()).acceptBytes()) {
-                assetBuilder.content(ioService.readAllBytes(file));
-            } else {
-                assetBuilder.content(ioService.readAllString(file, Charset.forName("UTF-8")));
-            }
+            try {
+				if (((AbstractAsset)assetBuilder.getAsset()).acceptBytes()) {
+				    assetBuilder.content(Files.readAllBytes(file));
+				} else {
+					List<String> lines = Files.readAllLines(file, Charsets.UTF_8);
+				    assetBuilder.content(Joiner.on(System.lineSeparator()).join(lines));
+				}
+			} catch (IOException e) {
+				return null;
+			}
         }
 
         return assetBuilder.getAsset();
@@ -475,12 +522,14 @@ public class VFSRepository implements Repository {
     }
 
     private void createIfNotExists(Path filePath) {
-        if (!ioService.exists(filePath.getParent())) {
+        if (!Files.exists(filePath.getParent())) {
             try {
                 fileSystem.provider().createDirectory(filePath.getParent(), null);
             } catch (FileAlreadyExistsException e) {
                 // TODO currently git provider does not properly check existence of directories
-            }
+            } catch (IOException e) {
+            	throw new AssertionError(e.getLocalizedMessage(), e);
+			}
         }
     }
 }
