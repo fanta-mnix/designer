@@ -72,7 +72,7 @@ public class DictionaryServletTest  extends RepositoryBaseTest {
 
         Asset<String> dictionaryAsset = repository.loadAsset(dictionary.iterator().next().getUniqueId());
         assertNotNull(dictionaryAsset);
-        assertEquals("this is dictionary\n", dictionaryAsset.getAssetContent());
+        assertEquals("this is dictionary", dictionaryAsset.getAssetContent());
     }
 
     @Test
@@ -101,6 +101,6 @@ public class DictionaryServletTest  extends RepositoryBaseTest {
 
         String dictionaryContent = new String(response.getContent());
         assertNotNull(dictionaryContent);
-        assertEquals("test dictionary content\n", dictionaryContent);
+        assertEquals("test dictionary content", dictionaryContent);
     }
 }

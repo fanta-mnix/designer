@@ -436,34 +436,6 @@
             <version>1.0.0-SNAPSHOT</version>
         </dependency>
 
-        <!-- repository dependencies -->
-        <dependency>
-            <groupId>org.kie</groupId>
-            <artifactId>kie-api</artifactId>
-            <version>${kie.commons.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>org.kie.commons</groupId>
-            <artifactId>kie-commons-io</artifactId>
-            <version>${kie.commons.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>org.kie.commons</groupId>
-            <artifactId>kie-nio2-jgit</artifactId>
-            <version>${kie.commons.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>org.kie.commons</groupId>
-            <artifactId>kie-nio2-fs</artifactId>
-            <version>${kie.commons.version}</version>
-        </dependency>
-
-        <dependency>
-            <groupId>org.kie.commons</groupId>
-            <artifactId>kie-nio2-model</artifactId>
-            <version>${kie.commons.version}</version>
-        </dependency>
-
         <!-- test -->
         <dependency>
             <groupId>junit</groupId>
@@ -479,9 +451,10 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-compiler-plugin</artifactId>
+                <version>2.3.2</version>
                 <configuration>
-                    <source>1.5</source>
-                    <target>1.5</target>
+                    <source>1.7</source>
+                    <target>1.7</target>
                 </configuration>
             </plugin>
             <plugin>

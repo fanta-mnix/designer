@@ -107,7 +107,7 @@ public class AssetServiceServletTest extends RepositoryBaseTest {
         assertTrue(processAssetExists);
 
         Asset<String> processAsset = repository.loadAsset(id);
-        assertEquals("testprocess\n", processAsset.getAssetContent());
+        assertEquals("testprocess", processAsset.getAssetContent());
     }
 
     @Test
@@ -408,7 +408,7 @@ public class AssetServiceServletTest extends RepositoryBaseTest {
 
         String jsonResponse = new String(response.getContent());
         assertNotNull(jsonResponse);
-        assertEquals(jsonResponse, "custom editors content\n");
+        assertEquals(jsonResponse, "custom editors content");
     }
 
     @Test
@@ -440,7 +440,7 @@ public class AssetServiceServletTest extends RepositoryBaseTest {
 
         String jsonResponse = new String(response.getContent());
         assertNotNull(jsonResponse);
-        assertEquals(jsonResponse, "custom editors content\n");
+        assertEquals(jsonResponse, "custom editors content");
     }
 
     @Test

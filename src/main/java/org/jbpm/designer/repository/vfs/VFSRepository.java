@@ -52,7 +52,7 @@ public class VFSRepository implements Repository {
     public VFSRepository(IDiagramProfile profile, Map<String, String> env) {
         this.repositoryRoot = URI.create(profile.getRepositoryRoot());
 
-        this.fileSystem = FileSystems.getFileSystem( this.repositoryRoot );
+        this.fileSystem = FileSystems.getFileSystem(getNormalizedRoot(repositoryRoot));
 
         if ( fileSystem == null ) {
 
@@ -71,6 +71,12 @@ public class VFSRepository implements Repository {
         this.repositoryRootPath = fileSystem.provider().getPath(this.repositoryRoot);
     }
     
+    private static URI getNormalizedRoot(URI repositoryRoot) {
+    	return "file".equals(repositoryRoot.getScheme()) ?
+				URI.create(repositoryRoot.getScheme() + ":/") :
+				repositoryRoot;
+    }
+    
     public Collection<Directory> listDirectories(String startAt) {
         Path path = fileSystem.provider().getPath(URI.create(getRepositoryRoot() + startAt));
         DirectoryStream<Path> directories;
@@ -85,6 +91,7 @@ public class VFSRepository implements Repository {
 			    }
 			});
 		} catch (IOException e) {
+			e.printStackTrace();
 			return null;
 		}
         Collection<Directory> foundDirectories = new ArrayList<Directory>();
@@ -114,6 +121,7 @@ public class VFSRepository implements Repository {
 
 			});
 		} catch (IOException e) {
+			e.printStackTrace();
 			return null;
 		}
 
@@ -126,6 +134,7 @@ public class VFSRepository implements Repository {
         try {
 			path = Files.createDirectories(path);
 		} catch (IOException e) {
+			e.printStackTrace();
 			return null;
 		}
         String uniqueId = encodeUniqueId(path.toUri().toString());
@@ -188,7 +197,7 @@ public class VFSRepository implements Repository {
                 public FileVisitResult preVisitDirectory(Path dir, BasicFileAttributes attrs) throws IOException {
                     Path destinationPath = fileSystem.provider().getPath(URI.create(destinationPathRoot +
                             fileSystem.getSeparator() + sourcePath.relativize(dir)));
-                    fileSystem.provider().createDirectory(destinationPath);
+                    Files.createDirectories(destinationPath);
 
                     return FileVisitResult.CONTINUE;
                 }
@@ -201,7 +210,7 @@ public class VFSRepository implements Repository {
                                 fileSystem.getSeparator() + sourcePath.relativize(currentFile)));
                         createIfNotExists(destinationPath);
 
-                        fileSystem.provider().copy(currentFile, destinationPath, null);
+                        fileSystem.provider().copy(currentFile, destinationPath, StandardCopyOption.REPLACE_EXISTING);
                     }
                     return FileVisitResult.CONTINUE;
                 }
@@ -280,6 +289,7 @@ public class VFSRepository implements Repository {
 			    }
 			});
 		} catch (IOException e) {
+			e.printStackTrace();
 			return null;
 		}
         Collection<Asset> foundDirectories = new ArrayList<Asset>();
@@ -304,6 +314,7 @@ public class VFSRepository implements Repository {
 			    }
 			});
 		} catch (IOException e) {
+			e.printStackTrace();
 			return null;
 		}
         Collection<Asset> foundDirectories = new ArrayList<Asset>();
@@ -366,6 +377,7 @@ public class VFSRepository implements Repository {
 				Files.write(filePath, asset.getAssetContent().toString().getBytes(), StandardOpenOption.TRUNCATE_EXISTING);
 			}
 		} catch (IOException e) {
+			e.printStackTrace();
 			return null;
 		}
 
@@ -448,7 +460,8 @@ public class VFSRepository implements Repository {
         BasicFileAttributes attrs;
 		try {
 			attrs = fileSystem.provider().readAttributes(file, BasicFileAttributes.class);
-		} catch (IOException e1) {
+		} catch (IOException e) {
+			e.printStackTrace();
 			return null;
 		}
         assetBuilder.uniqueId(encodeUniqueId(file.toUri().toString()))
@@ -468,6 +481,7 @@ public class VFSRepository implements Repository {
 				    assetBuilder.content(Joiner.on(System.lineSeparator()).join(lines));
 				}
 			} catch (IOException e) {
+				e.printStackTrace();
 				return null;
 			}
         }
@@ -522,9 +536,12 @@ public class VFSRepository implements Repository {
     }
 
     private void createIfNotExists(Path filePath) {
-        if (!Files.exists(filePath.getParent())) {
+        if (!Files.exists(filePath)) {
             try {
-                fileSystem.provider().createDirectory(filePath.getParent(), null);
+            	if (!Files.exists(filePath.getParent())) {
+            		Files.createDirectories(filePath.getParent());
+            	}
+            	Files.createFile(filePath);
             } catch (FileAlreadyExistsException e) {
                 // TODO currently git provider does not properly check existence of directories
             } catch (IOException e) {

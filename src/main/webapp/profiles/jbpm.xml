@@ -55,7 +55,7 @@
                 system-property - (optional) if set tu true property will be set as JVM system property
             -->
             <!-- simple file system based vfs configuration -->
-            <parameter name="root" value="default:///tmp/designer-repo" />
+            <parameter name="root" value="file:/tmp/designer-repo" />
             <parameter name="globaldir" value="/global" />
             <parameter name="name" value="Designer Repository"/>
             <!-- git based cfs configuration-->
